@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FeWo Buchungsübersicht – Jungferweiher</title>
+    <title>FeWo BuchungsÃ¼bersicht â Jungferweiher</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -117,21 +117,21 @@
     </style>
 </head>
 <body>
-    <h1>📅 FeWo Buchungsübersicht</h1>
-    <p class="subtitle">Jungferweiher – Automatische Übersicht aus Smoobu</p>
+    <h1>ð FeWo BuchungsÃ¼bersicht</h1>
+    <p class="subtitle">Jungferweiher â Automatische Ãbersicht aus Smoobu</p>
 
     <div class="card">
         <button class="btn btn-primary" id="btnFetch" onclick="fetchBookings()">
-            📥 Buchungen abrufen
+            ð¥ Buchungen abrufen
         </button>
         <div id="status" class="status"></div>
         <div id="output"></div>
         <div class="btn-row" id="actionButtons" style="display:none;">
             <button class="btn btn-whatsapp" onclick="openWhatsApp()">
-                💬 In WhatsApp öffnen
+                ð¬ In WhatsApp Ã¶ffnen
             </button>
             <button class="btn btn-copy" onclick="copyText()">
-                📋 Text kopieren
+                ð Text kopieren
             </button>
         </div>
         <p class="info" id="infoText"></p>
@@ -147,8 +147,8 @@ const PROXIES = [
     'https://api.codetabs.com/v1/proxy?quest='
 ];
 
-const MONTHS = ['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-const MONTHS_SHORT = ['','Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+const MONTHS = ['','Januar','Februar','MÃ¤rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const MONTHS_SHORT = ['','Jan','Feb','MÃ¤r','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 const DAYS_SHORT = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 
 let generatedText = '';
@@ -160,10 +160,13 @@ function setStatus(msg, type) {
 }
 
 async function fetchIcal() {
+    // Try direct fetch first (works on GitHub Pages)
     try {
         const r = await fetch(ICAL_URL);
         if (r.ok) return await r.text();
     } catch(e) {}
+
+    // Try proxies
     for (const proxy of PROXIES) {
         try {
             const r = await fetch(proxy + encodeURIComponent(ICAL_URL));
@@ -202,15 +205,19 @@ function parseEvents(ical) {
     for (let i = 1; i < events.length; i++) {
         const ev = events[i];
         if (!ev.includes('DTSTART;VALUE=DATE:')) continue;
-        const dsM = ev.match(/DTSTART;VALUE=DATE:(\\d{8})/);
-        const deM = ev.match(/DTEND;VALUE=DATE:(\\d{8})/);
-        const sumM = ev.match(/SUMMARY:(.*?)(?:\\r?\\n(?! ))/s);
-        const descM = ev.match(/DESCRIPTION:(.*?)(?:\\r?\\n[A-Z])/s);
+
+        const dsM = ev.match(/DTSTART;VALUE=DATE:(\d{8})/);
+        const deM = ev.match(/DTEND;VALUE=DATE:(\d{8})/);
+        const sumM = ev.match(/SUMMARY:(.*?)(?:\r?\n(?! ))/s);
+        const descM = ev.match(/DESCRIPTION:(.*?)(?:\r?\n[A-Z])/s);
+
         if (!dsM) continue;
+
         const start = parseDate(dsM[1]);
         const end = deM ? parseDate(deM[1]) : addDays(start, 1);
-        const summary = sumM ? sumM[1].trim().replace(/\\\\,/g,',').replace(/\\r/g,'').replace(/\\n /g,'') : '';
-        const desc = descM ? descM[1].trim().replace(/\\\\,/g,',').replace(/\\r/g,'').replace(/\\n /g,'') : '';
+        const summary = sumM ? sumM[1].trim().replace(/\\,/g,',').replace(/\r/g,'').replace(/\n /g,'') : '';
+        const desc = descM ? descM[1].trim().replace(/\\,/g,',').replace(/\r/g,'').replace(/\n /g,'') : '';
+
         bookings.push({ start, end, summary, desc });
     }
     return bookings;
@@ -219,34 +226,46 @@ function parseEvents(ical) {
 function extractName(b) {
     const { summary, desc } = b;
     if (desc.includes('Auto-Blocked') || summary.includes('Auto-Blocked')) return null;
-    let name = summary.replace(/,?\\s*Jungferweiher\\s*$/i, '').trim();
-    if (/^block\\s*/i.test(name)) {
-        const rem = name.replace(/^block\\s*/i, '').trim();
+
+    let name = summary.replace(/,?\s*Jungferweiher\s*$/i, '').trim();
+
+    if (/^block\s*/i.test(name)) {
+        const rem = name.replace(/^block\s*/i, '').trim();
         if (!rem || rem === ',') return null;
         name = rem;
     }
+
     if (!name || name.toLowerCase() === 'jungferweiher') return null;
-    const blockWords = ['blocked','blockiert','nicht verfügbar','unavailable','closed','gesperrt','maintenance','hold'];
+
+    const blockWords = ['blocked','blockiert','nicht verfÃ¼gbar','unavailable','closed','gesperrt','maintenance','hold'];
     if (blockWords.includes(name.toLowerCase())) return null;
+
     return name;
 }
 
 function getCleaningDays(checkout, nextCheckin) {
     const days = [];
     if (nextCheckin && checkout >= nextCheckin) return days;
-    days.push('– ' + dayName(checkout) + ' ' + fmtD(checkout) + ' ab 12:00 Uhr');
+
+    // Checkout day itself (even weekends)
+    days.push('â ' + dayName(checkout) + ' ' + fmtD(checkout) + ' ab 12:00 Uhr');
+
     let current = addDays(checkout, 1);
     let added = 0;
     let maxSearch = 10;
+
     while (added < 2 && maxSearch-- > 0) {
         if (nextCheckin && current > nextCheckin) break;
+
         if (nextCheckin && current.getTime() === nextCheckin.getTime()) {
-            days.push('– ' + dayName(current) + ' ' + fmtD(current) + ' bis 12:00 Uhr ⚠️ Achtung Anreise');
+            days.push('â ' + dayName(current) + ' ' + fmtD(current) + ' bis 12:00 Uhr â ï¸ Achtung Anreise');
             added++;
             break;
         }
+
+        // Only weekdays (Mo=1..Fr=5)
         if (current.getDay() >= 1 && current.getDay() <= 5) {
-            days.push('– ' + dayName(current) + ' ' + fmtD(current));
+            days.push('â ' + dayName(current) + ' ' + fmtD(current));
             added++;
         }
         current = addDays(current, 1);
@@ -258,18 +277,23 @@ function generateOverview(bookings) {
     const today = new Date();
     today.setHours(0,0,0,0);
     const futureLimit = addDays(today, DAYS_FUTURE);
+
+    // Get all named bookings
     const allNamed = [];
     for (const b of bookings) {
         const name = extractName(b);
         if (!name) continue;
-        const dep = addDays(b.end, -1);
+        const dep = addDays(b.end, -1); // DTEND is exclusive
         allNamed.push({ start: b.start, dep, name });
     }
     allNamed.sort((a,b) => a.start - b.start);
+
+    // Find last past booking
     let lastPast = null;
     for (const b of allNamed) {
         if (b.dep < today) lastPast = b;
     }
+
     const valid = [];
     if (lastPast) valid.push(lastPast);
     for (const b of allNamed) {
@@ -278,36 +302,50 @@ function generateOverview(bookings) {
         if (b.start > futureLimit) continue;
         valid.push(b);
     }
+
     if (!valid.length) return 'Keine Buchungen im Zeitraum gefunden.';
+
     const lastIdx = lastPast ? 0 : null;
     const lines = [];
     let curMonth = null;
+
     for (let i = 0; i < valid.length; i++) {
         const b = valid[i];
         const mKey = b.start.getFullYear() * 100 + b.start.getMonth();
+
         if (mKey !== curMonth) {
             curMonth = mKey;
             if (lines.length) lines.push('');
             lines.push('*' + MONTHS[b.start.getMonth()+1] + ' ' + b.start.getFullYear() + '*');
         }
+
+        // Date range
         const dateStr = b.start.getMonth() === b.dep.getMonth()
-            ? '*' + fmtD(b.start) + ' – ' + fmtD(b.dep) + '*'
-            : '*' + fmtDM(b.start) + ' – ' + fmtDM(b.dep) + '*';
+            ? '*' + fmtD(b.start) + ' â ' + fmtD(b.dep) + '*'
+            : '*' + fmtDM(b.start) + ' â ' + fmtDM(b.dep) + '*';
         lines.push(dateStr);
+
+        // Guest name
         let nameLine = b.name + ' - 2 Per';
-        if (i === lastIdx) nameLine += ' ← letzte Buchung';
+        if (i === lastIdx) nameLine += ' â letzte Buchung';
         lines.push(nameLine);
+
+        // Benedikt Junk
         if (b.name.toLowerCase().includes('benedikt') && b.name.toLowerCase().includes('junk')) {
-            lines.push('⚠️ keine Duftspender aufstellen');
+            lines.push('â ï¸ keine Duftspender aufstellen');
         }
+
+        // Cleaning days
         const nextCheckin = (i + 1 < valid.length) ? valid[i+1].start : null;
         const cleaning = getCleaningDays(b.dep, nextCheckin);
         if (cleaning.length) {
-            lines.push('🧹 Reinigung möglich');
+            lines.push('ð§¹ Reinigung mÃ¶glich');
             for (const c of cleaning) lines.push(c);
         }
+
         lines.push('');
     }
+
     return lines.join('\n').trim();
 }
 
@@ -317,17 +355,19 @@ async function fetchBookings() {
     setStatus('Buchungen werden geladen...', 'loading');
     document.getElementById('output').style.display = 'none';
     document.getElementById('actionButtons').style.display = 'none';
+
     try {
         const ical = await fetchIcal();
         const bookings = parseEvents(ical);
         generatedText = generateOverview(bookings);
+
         document.getElementById('output').textContent = generatedText;
         document.getElementById('output').style.display = 'block';
         document.getElementById('actionButtons').style.display = 'flex';
-        setStatus('✅ ' + bookings.filter(b => extractName(b)).length + ' Buchungen geladen – Stand: ' + new Date().toLocaleDateString('de-DE'), 'success');
+        setStatus('â ' + bookings.filter(b => extractName(b)).length + ' Buchungen geladen â Stand: ' + new Date().toLocaleDateString('de-DE'), 'success');
         document.getElementById('infoText').textContent = 'Zeitraum: letzte Buchung + 60 Tage ab heute';
     } catch(e) {
-        setStatus('❌ Fehler: ' + e.message, 'error');
+        setStatus('â Fehler: ' + e.message, 'error');
     }
     btn.disabled = false;
 }
@@ -335,8 +375,9 @@ async function fetchBookings() {
 function openWhatsApp() {
     navigator.clipboard.writeText(generatedText).then(() => {
         window.open(WHATSAPP_GROUP, '_blank');
-        setStatus('📋 Text kopiert! In WhatsApp einfügen mit Strg+V', 'success');
+        setStatus('ð Text kopiert! In WhatsApp einfÃ¼gen mit Strg+V', 'success');
     }).catch(() => {
+        // Fallback
         const ta = document.createElement('textarea');
         ta.value = generatedText;
         document.body.appendChild(ta);
@@ -344,13 +385,13 @@ function openWhatsApp() {
         document.execCommand('copy');
         document.body.removeChild(ta);
         window.open(WHATSAPP_GROUP, '_blank');
-        setStatus('📋 Text kopiert! In WhatsApp einfügen mit Strg+V', 'success');
+        setStatus('ð Text kopiert! In WhatsApp einfÃ¼gen mit Strg+V', 'success');
     });
 }
 
 function copyText() {
     navigator.clipboard.writeText(generatedText).then(() => {
-        setStatus('📋 Text in Zwischenablage kopiert!', 'success');
+        setStatus('ð Text in Zwischenablage kopiert!', 'success');
     }).catch(() => {
         const ta = document.createElement('textarea');
         ta.value = generatedText;
@@ -358,7 +399,7 @@ function copyText() {
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        setStatus('📋 Text in Zwischenablage kopiert!', 'success');
+        setStatus('ð Text in Zwischenablage kopiert!', 'success');
     });
 }
 </script>
