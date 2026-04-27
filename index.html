@@ -283,7 +283,8 @@ function generateOverview(bookings) {
     for (const b of bookings) {
         const name = extractName(b);
         if (!name) continue;
-        const dep = addDays(b.end, -1); // DTEND is exclusive
+        // v2.0: DTEND = tatsächlicher Abreisetag bei Smoobu (kein -1 Tag)
+        const dep = new Date(b.end);
         allNamed.push({ start: b.start, dep, name });
     }
     allNamed.sort((a,b) => a.start - b.start);
